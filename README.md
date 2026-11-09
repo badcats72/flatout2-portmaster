@@ -1,4 +1,4 @@
-![FlatOut 2](images/flatout2-banner.png)
+![FlatOut 2](images/flatout2-banner.jpg)
 
 # FlatOut 2 for ARM64 handhelds
 
