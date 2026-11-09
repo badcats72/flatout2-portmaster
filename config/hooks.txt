@@ -1,0 +1,13 @@
+# VA  comment (FlatOut2.exe instructions that call recomp_hook(va) first; runtime/guest/guest_runtime.cpp)
+0x0056C850 race physics step: the pad's race / menu mapping follows it (fo2InRace)
+0x00451386 right after the video system's "on" flag (0x8DA61C) is set: videos stay on only with FFmpeg (FO2_VIDEOS)
+0x004207AA the call to FSOUND_Init(mixrate, 64, 0x2000) (0x61A3A9): more software channels (FO2_FMOD_CHANNELS)
+0x004C8320 the AVI player closes its streams: the native VP3 decoder of that player is freed (runtime/native/fo2_video.c)
+0x005B06FA the adapter mode list refuses modes under 512x384: a smaller mode passes the two compares (480x320 on the RG351P)
+0x005B0716 after those compares: the mode's real size is put back
+0x004C8F00 the AVI player opens a file: the Zoom logo (data/video/nvidia.avi in that release) is not played (FO2_SKIP_LOGO)
+0x00524276 the Lua chunk reader, after a read: a car's camera.ini gets an extra camera appended (FO2_CAM4)
+0x0061AB73 FSOUND_3D_SetAttributes: a new sound takes its distance gain at once, not at the next FSOUND_Update (FO2_FMOD_STARTGAIN)
+# Sound investigation: the FMOD entries the game's sound layer calls most (FO2_FMOD_TRACE=1 logs their arguments).
+# Uncomment to trace them (each costs a register sync per call and takes the function out of the x87 window).
+# 0x0061598D  0x00615B77  0x0061C325  0x00615830  0x006154FD  0x00616483  0x00615B31  0x0061BF24  0x0061AB73  0x006155A8

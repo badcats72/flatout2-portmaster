@@ -1,0 +1,31 @@
+# Derived from the game's executable or data: build them from your own copy, never commit them.
+*.aarch64
+*.aarch64.*
+work/
+gen/
+recomp_*.c
+recomp_*.h
+recomp_dispatch.c
+recomp_imports.c
+*lift_stats.json
+d3dx_recomp_*
+FlatOut2.exe
+d3dx9_30.dll
+*.bfs
+gamedata/
+
+# Artwork taken from the game (EmulationStation images)
+port/*.png
+port/images/
+
+# Ready-to-play folders hold the game's files
+dist/
+
+# Logs and dumps from the device
+*.log
+log*.txt
+mem*.txt
+*.pam
+*.ppm
+shadercache/
+shaderdump/

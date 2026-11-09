@@ -1,0 +1,38 @@
+#pragma once
+#include <string>
+#include <vector>
+// Maps the owner's PE data, binds imports, tests lifted code and attempts CRT
+// entry until the first unsupported host service. Returns an honest status.
+std::string connectGuestRuntime(const char* executable);
+void requestGuestRuntimeStop();
+void quiesceGuestFilesForExit(int timeoutMs);  // flush saves before quitting (see guest_runtime.cpp)
+void setGuestPaused(bool paused);
+void setGuestDisplaySize(unsigned width,unsigned height);
+void setGuestKey(unsigned scan,bool down);
+void clearGuestInput();
+bool guestDrivingControls();
+bool fo2InRace();   // FlatOut 2's physics stepped in the last 300 ms (config/hooks.txt 0x56C850)
+// Physical gamepad seen by the game as a DirectInput joystick: axes X, Y, Z
+// (triggers), Rx, Ry, Rz in -1..1; buttons A B X Y LB RB Back Start LS RS as bits.
+void setGuestPad(const float axes[6],uint32_t buttons,int hatX,int hatY);
+void setGuestPadConnected(bool connected);
+// True while the game has the joystick acquired (then the pad stops emulating keys).
+bool guestGamepadInUse();
+// Launcher option; only before the guest boots.
+void setGuestWidescreen(bool enabled);
+void setGuestOnlineServer(const std::string& host);
+/** Touch as mouse: x/y as a fraction of the game view; phase 0 down, 1 move, 2 up (left button). */
+void setGuestPointer(float x,float y,int phase);
+/** Right mouse button at the pointer (WM_RBUTTONDOWN/UP, DirectInput mouse button 1). */
+void setGuestRightButton(bool down);
+/** Mouse wheel at the pointer (WM_MOUSEWHEEL): positive notches = wheel up. */
+void turnGuestWheel(int notches);
+/** The pointer as a fraction of the game view (the game may move it with SetCursorPos). */
+void getGuestPointer(float& x,float& y);
+/** True while the game shows its crosshair cursor (playing), false for the arrow (menus). */
+bool guestCursorIsCrosshair();
+/** Posts WM_CHAR messages (the game's text fields read those); 8 is backspace. */
+void typeGuestText(const std::vector<uint32_t>& characters);
+void setGuestLanguage(const char* language);
+void setGuestResolution(unsigned width,unsigned height);
+void setGuestFrameLimit(unsigned framesPerSecond);

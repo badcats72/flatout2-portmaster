@@ -106,8 +106,12 @@ Optional file `ports/flatout2/fo2.env`, one `VARIABLE=value` per line:
 | `FO2_KEEP_SETTINGS=1` | Keep the game's own graphics settings (the launcher otherwise forces the lowest) |
 | `NFSU2_SHOW_FPS=1` | FPS counter on at launch |
 
+## Source code
+
+The code of the port is in this repository, under the MIT license (see `LICENSE`). To change it and rebuild it, see [BUILD.md](BUILD.md). The repository itself holds no game files or generated code; the binary in the Release is built from the game's executable.
+
 ## Credits
 
-Bugbear Entertainment and Empire Interactive made the game. The recompilation runtime comes from the [NFSU2 recompiled port](https://github.com/manuelpllull/nfsu2-recompiled-r36s) (MIT), with MojoShader (zlib) and stb (public domain or MIT). FFmpeg is the console's own.
+Bugbear Entertainment and Empire Interactive made the game. The recompilation runtime comes from the [NFSU2 recompiled port](https://github.com/manuelpllull/nfsu2-recompiled-r36s) (MIT), built with [pcrecomp](https://github.com/sp00nznet/pcrecomp) (MIT), with MojoShader (zlib) and stb (public domain or MIT). FFmpeg is the console's own. See `THIRD_PARTY_NOTICES.md`.
 
 This project is not affiliated with or endorsed by the game's rights holders. FlatOut is a trademark of its respective owner.

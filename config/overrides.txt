@@ -1,0 +1,2 @@
+# VA  comment (FlatOut2.exe functions replaced by native code)
+0x004C8890 video frame decode: the system's FFmpeg instead of the lifted VP3 decoder (runtime/native/fo2_video.c)

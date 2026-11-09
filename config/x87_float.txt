@@ -1,0 +1,4 @@
+# first VA  end VA  [strict]  comment (lifted functions whose local x87 stack is float instead of double: scripts/x87float.py)
+# The first range that matches applies. strict leaves out functions that load or store integers on the x87 stack.
+# Extending it to the whole game (0x401000-0x600000, strict: 1,605 functions) measured no gain over the physics alone.
+0x00562000 0x00575000 the physics world: its values are 32-bit floats in memory

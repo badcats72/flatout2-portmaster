@@ -1,0 +1,3 @@
+# VA  bytes  comment (functions whose hook may ask to return at once: run_lift.py, g_recomp_skip_function)
+0x004C8F00 16 the AVI player opens a file (ret 0xC): returns 0, the caller then takes its "no video" path
+0x0056C850 12 the physics world step (ret 8): FO2_PHYSICS_HALF runs it one tick in two
