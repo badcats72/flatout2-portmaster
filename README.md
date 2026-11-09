@@ -4,6 +4,8 @@
 
 FlatOut 2 (PC) statically recompiled to native ARM64 Linux, as a PortMaster-style port. You provide the game files, the port does the rest: nothing to compile.
 
+**Transparency:** this port was developed entirely with Claude, Anthropic's AI, which wrote the code. My own part was testing it on real consoles, analysing the results and proposing improvements.
+
 <!-- SCREENSHOTS: one per console, same place in the game, FPS counter visible -->
 
 | RG34XX-SP | RG351P | GKD Pixel II |
