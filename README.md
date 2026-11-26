@@ -6,7 +6,7 @@ FlatOut 2 (PC) statically recompiled to native ARM64 Linux, as a PortMaster-styl
 
 **Transparency:** this port was developed entirely with Claude, Anthropic's AI, which wrote the code. My own part was testing it on real consoles, analysing the results and proposing improvements.
 
-> **New in 2.0.0:** [LAN multiplayer](#lan-multiplayer) between consoles and with a Windows PC, and native gamepad support with **analog steering** (progressive d-pad steering on consoles without a stick). [Download it from the Releases](https://github.com/badcats72/flatout2-portmaster/releases/latest).
+> **New in 2.1.0:** the port accepts other releases of the game (GOG, Steam, retail patch 1.2), see [What you need](#what-you-need). **New in 2.0.0:** [LAN multiplayer](#lan-multiplayer) between consoles and with a Windows PC, and native gamepad support with **analog steering** (progressive d-pad steering on consoles without a stick). [Download it from the Releases](https://github.com/badcats72/flatout2-portmaster/releases/latest).
 
 <!-- SCREENSHOTS: one per console, same place in the game, FPS counter visible -->
 
@@ -43,18 +43,24 @@ Version 1.0.0 was limited to 30 FPS on the RG351P and the GKD Pixel II; versions
 | 1.0.0 | <a href="images/rg34xx-sp.png"><img src="images/rg34xx-sp.png" height="160" alt="RG34XX-SP, 1.0.0"></a> | <a href="images/rg351p.png"><img src="images/rg351p.png" height="160" alt="RG351P, 1.0.0"></a> | <a href="images/gkd-pixel2.png"><img src="images/gkd-pixel2.png" height="160" alt="GKD Pixel II, 1.0.0"></a> |
 | 1.1.0 / 2.0.0 | <a href="images/rg34xx-sp-v1.1.0.png"><img src="images/rg34xx-sp-v1.1.0.png" height="160" alt="RG34XX-SP, 1.1.0"></a> | <a href="images/rg351p-v1.1.0.png"><img src="images/rg351p-v1.1.0.png" height="160" alt="RG351P, 1.1.0"></a> | <a href="images/gkd-pixel2-v1.1.0.png"><img src="images/gkd-pixel2-v1.1.0.png" height="160" alt="GKD Pixel II, 1.1.0"></a> |
 
+**R36S (dArkOSen):** reported working by a user with the community fix of [Coreilabs](https://github.com/coreilabs/flatout2-fix-r36s-darkosEN), now built into the launcher (KMSDRM video, ALSA sound, 640x480, the text console released while the game runs). Not tested by me.
+
 Other consoles are not tested. The launcher tries to adapt to the screen and video driver of an unknown console, but it may need work: please open an issue with your console, your OS and `ports/flatout2/log.txt`.
 
 ## What you need
 
 You must own the game. This port does not contain any of its data.
 
-You need the **GOG / Zoom Platform** version of the game (v2.1.0.9). Its `FlatOut2.exe` must have this MD5: `1f8cae2b47276ca134750ba438aa35ca`. The launcher checks it and tells you if your executable is not the right one.
+The port was made and tested with the **Zoom Platform** version of the game (v2.1.0.9; the Steam version was updated to match it in 2024), whose `FlatOut2.exe` has this MD5: `1f8cae2b47276ca134750ba438aa35ca`.
+
+**Other versions** (GOG, Steam, retail with patch 1.2) are accepted when their `FlatOut2.exe` is the same 1.2 build: the port compares it with the tested one, and shows a notice in the game for its first seconds. If you meet a bug with such a version, please [open an issue](https://github.com/badcats72/flatout2-portmaster/issues) with `ports/flatout2/log.txt`. An executable from another build, or packed / encrypted by a DRM (the retail CDs' SecuROM or StarForce), is refused with a message.
+
+The game also needs `d3dx9_30.dll` in its folder. If your release does not have it, copy it from a Windows PC: `C:\Windows\SysWOW64\d3dx9_30.dll`.
 
 ## Install
 
 1. Copy the launcher `FlatOut 2.sh` and the `flatout2` folder from the release zip into your `ports` folder.
-2. Copy everything from your game's folder into `ports/flatout2/gamedata/`. About 3 GB are needed.
+2. Copy everything from your game's folder into `ports/flatout2/gamedata/`. About 3 GB are needed. A folder copied inside `gamedata/` (the game's folder itself, or a GOG installer's `app` folder) is found too: its content is moved up at the first launch.
 3. Start `FlatOut 2` from the Ports menu.
 
 The first race after an install or an update can stutter for a moment: the port is filling its shader cache. It does not come back afterwards.
@@ -125,7 +131,7 @@ Up to 8 players over the same Wi-Fi network: in the game, choose Multiplayer, th
 
 ## Version
 
-Current version: **2.0.0**. See the [Releases](https://github.com/badcats72/flatout2-portmaster/releases) for what changed.
+Current version: **2.1.0**. See the [Releases](https://github.com/badcats72/flatout2-portmaster/releases) for what changed.
 
 ## Advanced settings
 
@@ -143,6 +149,7 @@ Optional file `ports/flatout2/fo2.env`, one `VARIABLE=value` per line:
 | `FO2_DIRECTINPUT_PAD=0` | Keyboard controls of 1.x (digital steering) instead of the gamepad |
 | `FO2_LAN=0` | LAN off |
 | `FO2_WIFI_AWAKE=0` | Leave the Wi-Fi's power saving on during LAN games |
+| `FO2_ANY_EXE=1` | Try a `FlatOut2.exe` that the port refuses (for testing only: it will most likely crash) |
 | `NFSU2_PARALLEL_THREADS=` | Empty: the sound engine's threads take turns with the game again, as in 1.0.0. Only for diagnosing a sound problem |
 
 ## Source code
@@ -151,6 +158,6 @@ The code of the port is in this repository, under the MIT license (see `LICENSE`
 
 ## Credits
 
-Bugbear Entertainment and Empire Interactive made the game. The recompilation runtime comes from the [NFSU2 recompiled port](https://github.com/manuelpllull/nfsu2-recompiled-r36s) (MIT), built with [pcrecomp](https://github.com/sp00nznet/pcrecomp) (MIT), with MojoShader (zlib) and stb (public domain or MIT). FFmpeg is the console's own. See `THIRD_PARTY_NOTICES.md`.
+Bugbear Entertainment and Empire Interactive made the game. The R36S launcher profile comes from the community fix by [Coreilabs](https://github.com/coreilabs/flatout2-fix-r36s-darkosEN) (MIT). The recompilation runtime comes from the [NFSU2 recompiled port](https://github.com/manuelpllull/nfsu2-recompiled-r36s) (MIT), built with [pcrecomp](https://github.com/sp00nznet/pcrecomp) (MIT), with MojoShader (zlib) and stb (public domain or MIT). FFmpeg is the console's own. See `THIRD_PARTY_NOTICES.md`.
 
 This project is not affiliated with or endorsed by the game's rights holders. FlatOut is a trademark of its respective owner.

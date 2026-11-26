@@ -9,7 +9,9 @@
 #if defined(__ANDROID__) || defined(NFS_D3D9_BACKEND)
 #include "d3d9_bridge.h"
 #include "nfs_widescreen.h"
-#include "nfs_exe_addr.h"   // v10 addresses -> the lifted exe's (config/exe_functions.txt)
+#include "nfs_exe_addr.h"
+#include "fo2_exe_profile.h"   // the lifted exe: page hashes and import slots (scripts/make_exe_profile.py)
+#include "fo2_text_tables.h"   // and the switch tables its code reads in .text (scripts/make_text_tables.py)   // v10 addresses -> the lifted exe's (config/exe_functions.txt)
 #endif
 #include <array>
 #include <cmath>
@@ -681,6 +683,18 @@ struct PendingModuleImport{uint32_t slot;std::string dll,name;};
 std::vector<PendingModuleImport> pendingModuleImports;  // bound by bindGuestModuleImports (guest_modules.inc)
 bool isGuestModuleName(const std::string& name);
 // Writes an import token into every IAT slot of a mapped image (the exe or a game DLL).
+// One import slot (IAT entry) bound by name: from a PE import table, or from the lifted exe's profile.
+void bindImportSlot(uint32_t slot, std::string dll, const std::string& name) {
+    std::transform(dll.begin(),dll.end(),dll.begin(),[](unsigned char c){return char(std::tolower(c));});
+    if(!modules.count(dll)) modules[dll]=0x71000000u+uint32_t(modules.size())*0x10000u;
+    if (isGuestModuleName(dll)) { pendingModuleImports.push_back({slot,dll,name}); write32(slot,0); return; }
+    // A data import: the slot holds the variable's address (msvcrt's Pentium FDIV flag, 0 = no workaround).
+    if (dll=="msvcrt.dll" && name=="_adjust_fdiv") { write32(slot,allocate(4)); return; }
+    if (imports.size()>=4096) throw GuestStop("Too many PE imports");
+    uint32_t va=importBase+uint32_t(imports.size())*16;
+    imports.push_back({dll+"!"+name,resolveFunction(dll,name)});
+    write32(slot,va);
+}
 void bindImports(uint32_t base, uint32_t size, uint32_t directoryRva, uint32_t directorySize) {
     moduleRange(size,directoryRva,directorySize);
     bool terminated=false;
@@ -689,8 +703,6 @@ void bindImports(uint32_t base, uint32_t size, uint32_t directoryRva, uint32_t d
         std::memcpy(&descriptor,ptr(base+directoryRva+offset,sizeof descriptor),sizeof descriptor);
         if (!descriptor.Name && !descriptor.FirstThunk) { terminated=true; break; }
         auto dll=moduleString(base,size,descriptor.Name);
-        std::transform(dll.begin(),dll.end(),dll.begin(),[](unsigned char c){return char(std::tolower(c));});
-        if(!modules.count(dll)) modules[dll]=0x71000000u+uint32_t(modules.size())*0x10000u;
         uint32_t names=descriptor.OriginalFirstThunk ? descriptor.OriginalFirstThunk : descriptor.FirstThunk;
         for (uint32_t i=0;;++i) {
             uint64_t nameRva=uint64_t(names)+i*4ull, iatRva=uint64_t(descriptor.FirstThunk)+i*4ull;
@@ -700,13 +712,7 @@ void bindImports(uint32_t base, uint32_t size, uint32_t directoryRva, uint32_t d
             std::string name;
             if (thunk&PE_ORDINAL_FLAG) name="#"+std::to_string(thunk&0xffff);
             else { moduleRange(size,thunk,3); name=moduleString(base,size,thunk+2); }
-            if (isGuestModuleName(dll)) { pendingModuleImports.push_back({base+uint32_t(iatRva),dll,name}); write32(base+uint32_t(iatRva),0); continue; }
-            // A data import: the slot holds the variable's address (msvcrt's Pentium FDIV flag, 0 = no workaround).
-            if (dll=="msvcrt.dll" && name=="_adjust_fdiv") { write32(base+uint32_t(iatRva),allocate(4)); continue; }
-            if (imports.size()>=4096) throw GuestStop("Too many PE imports");
-            uint32_t va=importBase+uint32_t(imports.size())*16;
-            imports.push_back({dll+"!"+name,resolveFunction(dll,name)});
-            write32(base+uint32_t(iatRva),va);
+            bindImportSlot(base+uint32_t(iatRva),dll,name);
         }
     }
     if (!terminated) throw GuestStop("Unterminated PE import descriptors");
@@ -714,6 +720,7 @@ void bindImports(uint32_t base, uint32_t size, uint32_t directoryRva, uint32_t d
 extern "C" const char nfs_exe_lifted_from[] __attribute__((weak));   // recomp_variant.c
 // The launcher (ports/r36s/package/NFSU2.sh) finds this string in the binary to check the exe before starting.
 extern "C" __attribute__((used)) const char nfs_exe_built_for[] = NFS_EXE_BUILT_FOR;
+extern "C" void d3d9SetNotice(const char* text);   // d3d9_gles.cpp: a message over the picture for the first seconds
 void loadImage(const char* path) {
     std::ifstream stream(path,std::ios::binary);
     if (!stream) throw GuestStop("Cannot open game PE");
@@ -723,16 +730,13 @@ void loadImage(const char* path) {
     auto nt=fileStruct<pe_nt_headers32>(file,dos.e_lfanew);
     if (nt.Signature!=0x4550 || nt.FileHeader.Machine!=0x14c || nt.OptionalHeader.Magic!=0x10b ||
         nt.FileHeader.SizeOfOptionalHeader<sizeof(pe_opt_header32)) throw GuestStop("Expected x86 PE32");
-    auto opt=nt.OptionalHeader; imageBase=opt.ImageBase; imageSize=opt.SizeOfImage;
+    auto opt=nt.OptionalHeader; imageBase=opt.ImageBase; imageSize=opt.SizeOfImage>0x600000u?fo2exe::kSizeOfImage:std::max(opt.SizeOfImage,fo2exe::kSizeOfImage);   // never over d3dx9_30.dll (0xA00000)
     resourceRva=opt.DataDirectory[2].VirtualAddress;resourceSize=opt.DataDirectory[2].Size;
-    // The lifted code and the exe mapped here must be the same build: a lift of one exe runs the other's data
-    // into wrong code. The lifted entry point must exist, and the file must be the GOG exe it was lifted from.
-    if (imageBase!=0x400000 || !recomp_lookup(imageBase+opt.AddressOfEntryPoint))
-        throw GuestStop("PE layout does not match the lifted " NFS_EXE_NAME " code");
-    if (file.size() != NFS_EXE_SIZE)
-        throw GuestStop(std::string(NFS_EXE_NAME)+" is "+std::to_string(file.size())+" bytes, but this build was lifted from the "+
-                        std::to_string(NFS_EXE_SIZE)+"-byte "+NFS_EXE_ID+" exe");
-    NFS_RUNTIME_LOG(ANDROID_LOG_INFO,"NFSU2","%s %s (%zu bytes) matches the lifted code",NFS_EXE_NAME,NFS_EXE_ID,file.size());
+    // The lifted code needs the data of the exe it was lifted from at the same addresses. Other copies of the same
+    // build (GOG, Steam, retail patch 1.2) differ in their headers, wrapper, import table or a few strings: their
+    // data pages are compared with the lifted exe's (fo2_exe_profile.h) once mapped, and their imports are bound
+    // from that profile. A copy whose data mostly differs (another build, or packed / encrypted) is refused.
+    if (imageBase!=0x400000) throw GuestStop("PE layout does not match the lifted " NFS_EXE_NAME " code");
     memory->commit(imageBase,imageSize);
     imageRange(0,opt.SizeOfHeaders);
     if (opt.SizeOfHeaders>file.size()) throw GuestStop("Truncated PE headers");
@@ -740,15 +744,50 @@ void loadImage(const char* path) {
     uint64_t sections=uint64_t(dos.e_lfanew)+24+nt.FileHeader.SizeOfOptionalHeader;
     for (uint32_t i=0;i<nt.FileHeader.NumberOfSections;++i) {
         auto sec=fileStruct<pe_section_header>(file,sections+i*sizeof(pe_section_header));
+        if (uint64_t(sec.VirtualAddress)+std::max(sec.VirtualSize,sec.SizeOfRawData)>imageSize) continue;   // a wrapper's section past the image
         imageRange(sec.VirtualAddress,std::max(sec.VirtualSize,sec.SizeOfRawData));
         if (uint64_t(sec.PointerToRawData)+sec.SizeOfRawData>file.size()) throw GuestStop("Truncated PE section");
         std::memcpy(ptr(imageBase+sec.VirtualAddress,sec.SizeOfRawData),file.data()+sec.PointerToRawData,sec.SizeOfRawData);
     }
-    entry=imageBase+opt.AddressOfEntryPoint;
+    unsigned dataDiff=0,codeDiff=0,otherDiff=0,dataPages=0,codePages=0;std::string diffList;
+    for (const auto& page:fo2exe::kPages) {
+        uint64_t h=0xcbf29ce484222325ull;const auto* p=static_cast<const uint8_t*>(ptr(page.va,0x1000));
+        for (unsigned i=0;i<0x1000;++i) h=(h^p[i])*0x100000001b3ull;
+        dataPages+=page.kind==1;codePages+=page.kind==2;
+        if (h==page.hash) continue;
+        (page.kind==1?dataDiff:page.kind==2?codeDiff:otherDiff)++;
+        if (diffList.size()<160) { char b[16]; std::snprintf(b,sizeof b," %08x",page.va); diffList+=b; }
+    }
+    const bool sameStamp=nt.FileHeader.TimeDateStamp==fo2exe::kTimeDateStamp;
+    const bool entryLifted=recomp_lookup(imageBase+opt.AddressOfEntryPoint)!=nullptr;
+    const bool exact=!dataDiff&&!codeDiff&&!otherDiff&&sameStamp&&opt.AddressOfEntryPoint==fo2exe::kEntryRva;
+    static const bool anyExe=[]{const char* e=std::getenv("FO2_ANY_EXE");return e&&e[0]=='1';}();
+    NFS_RUNTIME_LOG(ANDROID_LOG_INFO,"NFSU2","[FO2 EXE] %zu bytes, build stamp %08x (lifted %08x), entry %08x; pages differing: data %u of %u, code %u of %u, other %u%s%s",
+        file.size(),nt.FileHeader.TimeDateStamp,fo2exe::kTimeDateStamp,imageBase+opt.AddressOfEntryPoint,dataDiff,dataPages,codeDiff,codePages,otherDiff,
+        diffList.empty()?"":"; at",diffList.c_str());
+    // The lifted code reads nothing of .text but the game's switch tables: over a copy whose code differs (a DRM wrapper
+    // encrypts it, a protected retail copy rewrites functions), they are written back from the lifted exe.
+    if (codeDiff) {
+        for (const auto& table:fo2exe::kTextTables) std::memcpy(ptr(table.va,table.size),fo2exe::kTextTableBytes+table.offset,table.size);
+        NFS_RUNTIME_LOG(ANDROID_LOG_INFO,"NFSU2","[FO2 EXE] code differs: %zu switch tables written back",sizeof fo2exe::kTextTables/sizeof fo2exe::kTextTables[0]);
+    }
+    if (dataDiff>12 && !anyExe)
+        throw GuestStop("[FO2 EXE] unsupported FlatOut2.exe: "+std::to_string(dataDiff)+" of "+std::to_string(dataPages)+" data pages and "+
+                        std::to_string(codeDiff)+" of "+std::to_string(codePages)+" code pages differ from the 1.2 build the port was made from (another version, or a packed or encrypted exe). FO2_ANY_EXE=1 tries it anyway.");
+    entry=imageBase+(entryLifted?opt.AddressOfEntryPoint:fo2exe::kEntryRva);
     // Guest VAs stay fixed; the 64-bit host base is ADDR's offset. No PE
     // relocation toward the host address and no executable x86 mapping.
-    auto directory=opt.DataDirectory[PE_DIR_IMPORT];
-    bindImports(imageBase,imageSize,directory.VirtualAddress,directory.Size);
+    if (exact) {
+        auto directory=opt.DataDirectory[PE_DIR_IMPORT];
+        bindImports(imageBase,imageSize,directory.VirtualAddress,directory.Size);
+        NFS_RUNTIME_LOG(ANDROID_LOG_INFO,"NFSU2","%s %s matches the lifted code",NFS_EXE_NAME,NFS_EXE_ID);
+    } else {
+        for (const auto& import:fo2exe::kImports) bindImportSlot(import.slot,import.dll,import.name);
+        NFS_RUNTIME_LOG(ANDROID_LOG_WARN,"NFSU2","[FO2 EXE] not the exe the port was made from (%s): imports bound from its profile",NFS_EXE_ID);
+        d3d9SetNotice("This FlatOut2.exe is not the tested version (GOG / Zoom v2.1.0.9).\n"
+                      "The game should work. If you meet a bug, please open an issue:\n"
+                      "github.com/badcats72/flatout2-portmaster/issues (with log.txt)");
+    }
     NFS_RUNTIME_LOG(ANDROID_LOG_INFO,"NFSU2","Guest PE mapped: base=%08x size=%08x entry=%08x; %zu imports bound; %u lifted functions",
         imageBase,imageSize,entry,imports.size(),recomp_dispatch_count);
 }

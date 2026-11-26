@@ -39,6 +39,13 @@ $gen  = "$repo\work\gen"
 & "$repo\scripts\lw\lw.ps1" -Python $py -Gen $gen
 ```
 
+The runtime's profile of the exe (page hashes, import slots) and the switch tables it restores over a copy whose code differs are generated from the lifted exe and the lifted code. They are in the repository; generate them again after a new lift:
+
+```powershell
+& $py "$repo\scripts\make_exe_profile.py" "$work\FlatOut2.exe" "$repo\runtime\native\fo2_exe_profile.h"
+& $py "$repo\scripts\make_text_tables.py" "$work\FlatOut2.exe" $gen "$repo\runtime\native\fo2_text_tables.h"
+```
+
 3. Compile the lifted code, then the runtime and the final binary:
 
 ```powershell

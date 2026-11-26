@@ -1968,7 +1968,45 @@ void drawFpsCounter(int fbW, int fbH, GLuint fbo) {
 }
 }  // namespace
 
+// A message over the picture for its first seconds (d3d9SetNotice): the runtime's warning about an untested exe.
+std::mutex g_noticeMutex;
+std::string g_noticeText;
+std::atomic<bool> g_noticeActive{false};
+void drawNotice(int fbW, int fbH, GLuint fbo) {
+    static std::chrono::steady_clock::time_point until{};
+    static const int seconds = [] { const char* e = std::getenv("FO2_NOTICE_SEC"); return e ? std::atoi(e) : 25; }();
+    const auto now = std::chrono::steady_clock::now();
+    if (until == std::chrono::steady_clock::time_point{}) until = now + std::chrono::seconds(seconds);
+    if (now > until) { g_noticeActive = false; return; }
+    std::vector<std::string> lines;
+    {
+        std::lock_guard<std::mutex> lock(g_noticeMutex);
+        size_t start = 0;
+        for (;;) { const size_t end = g_noticeText.find('\n', start); lines.push_back(g_noticeText.substr(start, end - start)); if (end == std::string::npos) break; start = end + 1; }
+    }
+    const float virtW = 480.0f * static_cast<float>(fbW) / static_cast<float>(fbH);
+    float w = 0;
+    for (const auto& l : lines) w = std::max(w, overlayTextWidth(l.c_str(), 0.75f));
+    const float scale = w + 12.0f > virtW ? 0.75f * (virtW - 12.0f) / w : 0.75f;
+    w = 0;
+    for (const auto& l : lines) w = std::max(w, overlayTextWidth(l.c_str(), scale));
+    const float lineH = 16.0f * scale + 2.0f, h = lineH * lines.size() + 8.0f;
+    const float x = std::floor((virtW - w) * 0.5f) - 4.0f, y = 480.0f - h - 6.0f;
+    std::vector<OverlayVertex> verts;
+    verts.reserve(2048);
+    overlayQuad(verts, x, y, x + w + 8.0f, y + h, 0x200000D0u);
+    for (size_t i = 0; i < lines.size(); ++i)
+        overlayText(verts, x + 4.0f, y + 4.0f + lineH * i, lines[i].c_str(), i == 0 ? 0xFFD060FFu : 0xF0F0F0FFu, scale);
+    submitOverlay(verts, fbW, fbH, fbo, virtW);
+}
+
 static std::atomic<uint32_t> g_d3d9PresentCount{0};
+extern "C" void d3d9SetNotice(const char* text) {
+    std::lock_guard<std::mutex> lock(d3d9_gles::g_noticeMutex);
+    d3d9_gles::g_noticeText = text;
+    d3d9_gles::g_noticeActive = true;
+    std::printf("[NFSU2] Notice on screen: %s\n", text);
+}
 
 // The bridge's render thread calls this from the game's own thread (the one issuing D3D9 calls).
 extern "C" void d3d9NoteGameThread() {
@@ -2185,6 +2223,14 @@ STDMETHODIMP IDirect3DDevice9GLES::Present(const RECT* pSourceRect, const RECT* 
         const UINT w = m_presentParams.BackBufferWidth ? m_presentParams.BackBufferWidth : 640;
         const UINT h = m_presentParams.BackBufferHeight ? m_presentParams.BackBufferHeight : 480;
         drawFpsCounter(static_cast<int>(w), static_cast<int>(h), overlayFbo);
+        m_currentProgram = nullptr;
+        for (bool& e : m_attribEnabled) e = false;
+        m_fboDirty = true;
+    }
+    if (g_noticeActive.load(std::memory_order_relaxed)) {
+        const UINT w = m_presentParams.BackBufferWidth ? m_presentParams.BackBufferWidth : 640;
+        const UINT h = m_presentParams.BackBufferHeight ? m_presentParams.BackBufferHeight : 480;
+        drawNotice(static_cast<int>(w), static_cast<int>(h), overlayFbo);
         m_currentProgram = nullptr;
         for (bool& e : m_attribEnabled) e = false;
         m_fboDirty = true;
