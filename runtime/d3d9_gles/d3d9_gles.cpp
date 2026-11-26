@@ -2128,9 +2128,13 @@ STDMETHODIMP IDirect3DDevice9GLES::Present(const RECT* pSourceRect, const RECT* 
                         cpuAcc / 120.0, wallAcc / 120.0, 120000.0 / wallAcc, drawAcc / 120.0, glsc::driverNs() / 1e6 / 120.0);
             { auto& pc = d3d9_gles::programBinaryCache();
               if (pc.ok) std::printf("[NFSU2 PERF] program binary cache: %u loaded, %u saved, %u rejected; failed links: %u skipped, %u remembered\n", pc.loaded, pc.saved, pc.rejected, pc.failuresSkipped, pc.failuresSaved); }
-            perfThreadsReport(120, wallAcc / 120.0, glsc::driverNs() / 1e6 / 120.0, drawAcc / 120.0);
-            gpuLoadReport(120, wallAcc / 120.0);
-            {
+            // The detailed report (every thread's /proc stat, memory, I/O, waits) took ~25 ms of the render thread every 120
+            // frames: a stutter every 2 s in play (found in the Alien Shooter 2 port, same code). Only with NFSU2_PERF_DETAIL=1
+            // (tests); the line above stays.
+            static const bool detail = [] { const char* e = std::getenv("NFSU2_PERF_DETAIL"); return e && e[0] == '1'; }();
+            if (detail) perfThreadsReport(120, wallAcc / 120.0, glsc::driverNs() / 1e6 / 120.0, drawAcc / 120.0);
+            if (detail) gpuLoadReport(120, wallAcc / 120.0);
+            if (detail) {
                 double w[14];
                 for (int i = 0; i < 14; ++i) w[i] = g_waitNs[i].exchange(0) / 1e6 / 120.0;
                 // Run-queue delay of the game thread (ready to run but no core given): /proc/<tid>/schedstat.

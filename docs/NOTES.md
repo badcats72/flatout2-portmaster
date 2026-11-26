@@ -687,6 +687,11 @@ for 10 s (d3d9AddNotice: a list of notices with their colour and time) and print
 fetches the latest release tag from api.github.com in the background while it prepares the game (curl or wget, 4 s at
 most, FO2_UPDATE_CHECK=0 off) and passes a newer one as FO2_UPDATE_AVAILABLE (shown 15 s, in green). FO2_PORT_VERSION_TEST pretends another version (screenshots).
 
+**A stutter every 2 s (2.2.1).** Found in the Alien Shooter 2 port, which shares this code: the 120-frame report
+gathered, on the render thread, every thread's /proc stat, memory, I/O and the wait breakdown and wrote them to the
+card, ~25 ms. An automatic race on the RG34XX-SP: 11 hitch frames, 7 of them right after a report; with the detailed
+part only under NFSU2_PERF_DETAIL=1 (test scripts set it; the one-line frame report stays): 6, none after a report.
+
 **R36S with dArkOSen (community fix).** Coreilabs (github.com/coreilabs/flatout2-fix-r36s-darkosEN, MIT) got the port out
 of a black screen on an R36S with dArkOSen by changing the old two launchers: SDL KMSDRM, ALSA (SDL and OpenAL), explicit
 libGLESv2.so / libEGL.so, 640x480, video decoding 3 threads + fast, no CPU boost, stdin from /dev/tty1, the vtconsole

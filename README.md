@@ -132,7 +132,7 @@ Up to 8 players over the same Wi-Fi network: in the game, choose Multiplayer, th
 
 ## Version
 
-Current version: **2.2.0**. See the [Releases](https://github.com/badcats72/flatout2-portmaster/releases) for what changed.
+Current version: **2.2.1**. See the [Releases](https://github.com/badcats72/flatout2-portmaster/releases) for what changed.
 
 ## Advanced settings
 
