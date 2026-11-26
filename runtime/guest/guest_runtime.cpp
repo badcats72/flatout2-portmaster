@@ -720,7 +720,7 @@ void bindImports(uint32_t base, uint32_t size, uint32_t directoryRva, uint32_t d
 extern "C" const char nfs_exe_lifted_from[] __attribute__((weak));   // recomp_variant.c
 // The launcher (ports/r36s/package/NFSU2.sh) finds this string in the binary to check the exe before starting.
 extern "C" __attribute__((used)) const char nfs_exe_built_for[] = NFS_EXE_BUILT_FOR;
-extern "C" void d3d9SetNotice(const char* text);   // d3d9_gles.cpp: a message over the picture for the first seconds
+extern "C" void d3d9AddNotice(const char* text, uint32_t rgba, int seconds);   // d3d9_gles.cpp: a message over the first seconds
 void loadImage(const char* path) {
     std::ifstream stream(path,std::ios::binary);
     if (!stream) throw GuestStop("Cannot open game PE");
@@ -784,9 +784,9 @@ void loadImage(const char* path) {
     } else {
         for (const auto& import:fo2exe::kImports) bindImportSlot(import.slot,import.dll,import.name);
         NFS_RUNTIME_LOG(ANDROID_LOG_WARN,"NFSU2","[FO2 EXE] not the exe the port was made from (%s): imports bound from its profile",NFS_EXE_ID);
-        d3d9SetNotice("This FlatOut2.exe is not the tested version (GOG / Zoom v2.1.0.9).\n"
+        d3d9AddNotice("This FlatOut2.exe is not the tested version (GOG / Zoom v2.1.0.9).\n"
                       "The game should work. If you meet a bug, please open an issue:\n"
-                      "github.com/badcats72/flatout2-portmaster/issues (with log.txt)");
+                      "github.com/badcats72/flatout2-portmaster/issues (with log.txt)",0xFFD060FFu,25);
     }
     NFS_RUNTIME_LOG(ANDROID_LOG_INFO,"NFSU2","Guest PE mapped: base=%08x size=%08x entry=%08x; %zu imports bound; %u lifted functions",
         imageBase,imageSize,entry,imports.size(),recomp_dispatch_count);

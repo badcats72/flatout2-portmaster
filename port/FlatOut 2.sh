@@ -136,6 +136,23 @@ if [ -f fo2.env ]; then
   done < fo2.env
 fi
 
+# Update check (FO2_UPDATE_CHECK=0 skips it): the tag of the port's latest release on GitHub, fetched in the background
+# while the launcher prepares the game (at most 4 s). Nothing else is sent or downloaded. Offline, nothing is shown.
+UPDATE_TMP="/tmp/fo2_latest.$$"; UPDATE_PID=""
+if [ "${FO2_UPDATE_CHECK:-1}" != "0" ]; then
+  (
+    URL=https://api.github.com/repos/badcats72/flatout2-portmaster/releases/latest
+    if command -v curl > /dev/null 2>&1; then curl -fsSL -m 4 "$URL" 2>/dev/null
+    elif command -v wget > /dev/null 2>&1; then wget -qO- -T 4 "$URL" 2>/dev/null; fi \
+      | sed -n 's/.*"tag_name" *: *"v\{0,1\}\([0-9][0-9.]*\)".*/\1/p' | head -1 > "$UPDATE_TMP"
+  ) &
+  UPDATE_PID=$!
+fi
+newer() {  # 0 when the dotted version $1 is newer than $2
+  awk -v a="$1" -v b="$2" 'BEGIN { n = split(a, x, "."); m = split(b, y, "."); if (m > n) n = m
+    for (i = 1; i <= n; i++) { if (x[i] + 0 > y[i] + 0) exit 0; if (x[i] + 0 < y[i] + 0) exit 1 } exit 1 }'
+}
+
 # Savegame/device.cfg keeps the display mode (width, height, bits at bytes 120/124/128). At boot the game
 # looks for it among the adapter's modes; the runtime offers only FO2_RENDER, so the 1280x1024x32 its
 # auto-configuration stores never matched, and the auto-configuration (highest details, 0x450AA0) ran again
@@ -257,6 +274,19 @@ if [ "$KMS_VT" = "1" ] && [ "${FO2_KMS_VT:-1}" != "0" ]; then
 fi
 
 chmod +x ./fo2.aarch64
+# The update check's answer (started above): the game shows "Update available" for its first seconds.
+if [ -n "$UPDATE_PID" ]; then
+  for i in 1 2 3 4; do kill -0 "$UPDATE_PID" 2>/dev/null || break; sleep 1; done
+  kill "$UPDATE_PID" 2>/dev/null
+  LATEST=$(cat "$UPDATE_TMP" 2>/dev/null); rm -f "$UPDATE_TMP"
+  CURRENT=$(./fo2.aarch64 --version 2>/dev/null)
+  if [ -n "$LATEST" ] && [ -n "$CURRENT" ] && newer "$LATEST" "$CURRENT"; then
+    export FO2_UPDATE_AVAILABLE="v$LATEST"
+    echo "Update available: v$LATEST (this port: v$CURRENT)"
+  else
+    echo "Update check: latest release ${LATEST:-unknown (offline?)}, this port v${CURRENT:-?}"
+  fi
+fi
 # FO2_CAP (fo2.env): the frame rate limit. 60 lets frames alternate between one and two panel refreshes when the game
 # cannot hold 60, felt as stutter; 30 gives even frames.
 ./fo2.aarch64 --cap="${FO2_CAP:-$DEFAULT_CAP}"

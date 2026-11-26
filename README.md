@@ -6,7 +6,7 @@ FlatOut 2 (PC) statically recompiled to native ARM64 Linux, as a PortMaster-styl
 
 **Transparency:** this port was developed entirely with Claude, Anthropic's AI, which wrote the code. My own part was testing it on real consoles, analysing the results and proposing improvements.
 
-> **New in 2.1.0:** the port accepts other releases of the game (GOG, Steam, retail patch 1.2), see [What you need](#what-you-need). **New in 2.0.0:** [LAN multiplayer](#lan-multiplayer) between consoles and with a Windows PC, and native gamepad support with **analog steering** (progressive d-pad steering on consoles without a stick). [Download it from the Releases](https://github.com/badcats72/flatout2-portmaster/releases/latest).
+> **New in 2.2.0:** the port shows its version at launch and tells you when a newer release is out. **New in 2.1.0:** the port accepts other releases of the game (GOG, Steam, retail patch 1.2), see [What you need](#what-you-need). **New in 2.0.0:** [LAN multiplayer](#lan-multiplayer) between consoles and with a Windows PC, and native gamepad support with **analog steering** (progressive d-pad steering on consoles without a stick). [Download it from the Releases](https://github.com/badcats72/flatout2-portmaster/releases/latest).
 
 <!-- SCREENSHOTS: one per console, same place in the game, FPS counter visible -->
 
@@ -109,6 +109,7 @@ Up to 8 players over the same Wi-Fi network: in the game, choose Multiplayer, th
 
 ## What this port adds
 
+- The port's version shown for the first seconds of the game, and a check for a newer release on GitHub (one request at launch, only with a network connection; nothing is downloaded).
 - A 100% save in profile slot 8, named **TEST**: every car and every event unlocked, to try the whole game at once.
 - A fourth chase camera, close to the car.
 - Native FMV decoding through the console's FFmpeg (no FFmpeg, no videos).
@@ -131,7 +132,7 @@ Up to 8 players over the same Wi-Fi network: in the game, choose Multiplayer, th
 
 ## Version
 
-Current version: **2.1.0**. See the [Releases](https://github.com/badcats72/flatout2-portmaster/releases) for what changed.
+Current version: **2.2.0**. See the [Releases](https://github.com/badcats72/flatout2-portmaster/releases) for what changed.
 
 ## Advanced settings
 
@@ -149,6 +150,7 @@ Optional file `ports/flatout2/fo2.env`, one `VARIABLE=value` per line:
 | `FO2_DIRECTINPUT_PAD=0` | Keyboard controls of 1.x (digital steering) instead of the gamepad |
 | `FO2_LAN=0` | LAN off |
 | `FO2_WIFI_AWAKE=0` | Leave the Wi-Fi's power saving on during LAN games |
+| `FO2_UPDATE_CHECK=0` | No check for a newer release at launch |
 | `FO2_ANY_EXE=1` | Try a `FlatOut2.exe` that the port refuses (for testing only: it will most likely crash) |
 | `NFSU2_PARALLEL_THREADS=` | Empty: the sound engine's threads take turns with the game again, as in 1.0.0. Only for diagnosing a sound problem |
 

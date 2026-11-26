@@ -1968,42 +1968,48 @@ void drawFpsCounter(int fbW, int fbH, GLuint fbo) {
 }
 }  // namespace
 
-// A message over the picture for its first seconds (d3d9SetNotice): the runtime's warning about an untested exe.
+// Messages over the picture for the first seconds of the game (d3d9AddNotice): the port's version, an update found by the
+// launcher, the warning about an untested exe. Each has its colour and its time on screen, counted from the first frame.
+struct Notice { std::string text; uint32_t rgba; int seconds; };
 std::mutex g_noticeMutex;
-std::string g_noticeText;
+std::vector<Notice> g_notices;
 std::atomic<bool> g_noticeActive{false};
 void drawNotice(int fbW, int fbH, GLuint fbo) {
-    static std::chrono::steady_clock::time_point until{};
-    static const int seconds = [] { const char* e = std::getenv("FO2_NOTICE_SEC"); return e ? std::atoi(e) : 25; }();
+    static std::chrono::steady_clock::time_point start{};
+    static const int forced = [] { const char* e = std::getenv("FO2_NOTICE_SEC"); return e ? std::atoi(e) : 0; }();
     const auto now = std::chrono::steady_clock::now();
-    if (until == std::chrono::steady_clock::time_point{}) until = now + std::chrono::seconds(seconds);
-    if (now > until) { g_noticeActive = false; return; }
-    std::vector<std::string> lines;
+    if (start == std::chrono::steady_clock::time_point{}) start = now;
+    const double elapsed = std::chrono::duration<double>(now - start).count();
+    std::vector<std::pair<std::string, uint32_t>> lines;
     {
         std::lock_guard<std::mutex> lock(g_noticeMutex);
-        size_t start = 0;
-        for (;;) { const size_t end = g_noticeText.find('\n', start); lines.push_back(g_noticeText.substr(start, end - start)); if (end == std::string::npos) break; start = end + 1; }
+        for (const auto& n : g_notices) {
+            if (elapsed > (forced ? forced : n.seconds)) continue;
+            size_t from = 0;
+            for (;;) { const size_t end = n.text.find('\n', from); lines.emplace_back(n.text.substr(from, end - from), n.rgba); if (end == std::string::npos) break; from = end + 1; }
+        }
     }
+    if (lines.empty()) { g_noticeActive = false; return; }
     const float virtW = 480.0f * static_cast<float>(fbW) / static_cast<float>(fbH);
     float w = 0;
-    for (const auto& l : lines) w = std::max(w, overlayTextWidth(l.c_str(), 0.75f));
+    for (const auto& l : lines) w = std::max(w, overlayTextWidth(l.first.c_str(), 0.75f));
     const float scale = w + 12.0f > virtW ? 0.75f * (virtW - 12.0f) / w : 0.75f;
     w = 0;
-    for (const auto& l : lines) w = std::max(w, overlayTextWidth(l.c_str(), scale));
+    for (const auto& l : lines) w = std::max(w, overlayTextWidth(l.first.c_str(), scale));
     const float lineH = 16.0f * scale + 2.0f, h = lineH * lines.size() + 8.0f;
     const float x = std::floor((virtW - w) * 0.5f) - 4.0f, y = 480.0f - h - 6.0f;
     std::vector<OverlayVertex> verts;
-    verts.reserve(2048);
-    overlayQuad(verts, x, y, x + w + 8.0f, y + h, 0x200000D0u);
+    verts.reserve(4096);
+    overlayQuad(verts, x, y, x + w + 8.0f, y + h, 0x101010D0u);
     for (size_t i = 0; i < lines.size(); ++i)
-        overlayText(verts, x + 4.0f, y + 4.0f + lineH * i, lines[i].c_str(), i == 0 ? 0xFFD060FFu : 0xF0F0F0FFu, scale);
+        overlayText(verts, x + 4.0f, y + 4.0f + lineH * i, lines[i].first.c_str(), lines[i].second, scale);
     submitOverlay(verts, fbW, fbH, fbo, virtW);
 }
 
 static std::atomic<uint32_t> g_d3d9PresentCount{0};
-extern "C" void d3d9SetNotice(const char* text) {
+extern "C" void d3d9AddNotice(const char* text, uint32_t rgba, int seconds) {
     std::lock_guard<std::mutex> lock(d3d9_gles::g_noticeMutex);
-    d3d9_gles::g_noticeText = text;
+    d3d9_gles::g_notices.push_back({text, rgba, seconds});
     d3d9_gles::g_noticeActive = true;
     std::printf("[NFSU2] Notice on screen: %s\n", text);
 }

@@ -682,6 +682,11 @@ the dynamic dispatch) into runtime/native/fo2_text_tables.h, and loadImage write
 The code pages no longer refuse a copy. Zeroed .text still stopped at start until the memcpy tables were complete: found
 by zeroing page ranges of the real exe on the console (scratchpad bisect.sh: page 0x5FF000).
 
+**Version and update check (2.2.0).** runtime/native/fo2_version.h (FO2_PORT_VERSION, to raise at each release) is shown
+for 10 s (d3d9AddNotice: a list of notices with their colour and time) and printed by `fo2.aarch64 --version`. The launcher
+fetches the latest release tag from api.github.com in the background while it prepares the game (curl or wget, 4 s at
+most, FO2_UPDATE_CHECK=0 off) and passes a newer one as FO2_UPDATE_AVAILABLE (shown 15 s, in green). FO2_PORT_VERSION_TEST pretends another version (screenshots).
+
 **R36S with dArkOSen (community fix).** Coreilabs (github.com/coreilabs/flatout2-fix-r36s-darkosEN, MIT) got the port out
 of a black screen on an R36S with dArkOSen by changing the old two launchers: SDL KMSDRM, ALSA (SDL and OpenAL), explicit
 libGLESv2.so / libEGL.so, 640x480, video decoding 3 threads + fast, no CPU boost, stdin from /dev/tty1, the vtconsole

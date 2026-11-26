@@ -1,3 +1,4 @@
+#include "fo2_version.h"   // FO2_PORT_VERSION
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengles2.h>
 
@@ -407,7 +408,17 @@ static void chooseResolution(R36SHostConfig& config) {
 }
 
 extern "C" void nfsInstallCrashHandler();   // guest_runtime.cpp
+extern "C" void d3d9AddNotice(const char* text, uint32_t rgba, int seconds);   // d3d9_gles.cpp
 int main(int argc, char** argv) {
+    // The port's version: "--version" prints it (the launcher's update check), and the game shows it for its first
+    // seconds, with the update the launcher found (FO2_UPDATE_AVAILABLE=<tag>). FO2_PORT_VERSION_TEST replaces it (tests).
+    const char* versionTest = std::getenv("FO2_PORT_VERSION_TEST");
+    const std::string version = versionTest && *versionTest ? versionTest : FO2_PORT_VERSION;
+    if (argc > 1 && std::string(argv[1]) == "--version") { std::printf("%s\n", version.c_str()); return 0; }
+    std::printf("[NFSU2] FlatOut 2 ARM64 port v%s\n", version.c_str());
+    d3d9AddNotice(("FlatOut 2 ARM64 port v" + version).c_str(), 0xE8E8E8FFu, 10);
+    if (const char* update = std::getenv("FO2_UPDATE_AVAILABLE"); update && *update)
+        d3d9AddNotice((std::string("Update available: ") + update + " - github.com/badcats72/flatout2-portmaster/releases").c_str(), 0x70F070FFu, 15);
     // Line-buffered logs: the launcher pipes them to log.txt, and a hang must not swallow the last lines.
     std::setvbuf(stdout, nullptr, _IOLBF, 0);
     std::setvbuf(stderr, nullptr, _IOLBF, 0);
